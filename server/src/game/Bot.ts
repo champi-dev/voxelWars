@@ -37,6 +37,12 @@ export class BotEntity extends PlayerEntity {
   private settings: DifficultySettings;
   private isBot: boolean = true;
 
+  // Smooth movement/rotation
+  private targetAngle: number = 0;
+  private currentMoveX: number = 0;
+  private currentMoveY: number = 0;
+  private lastAIUpdate: number = Date.now();
+
   constructor(
     id: string,
     username: string,
@@ -56,6 +62,21 @@ export class BotEntity extends PlayerEntity {
 
     const now = Date.now();
 
+    // Update AI decisions less frequently for smoother movement
+    // AI thinks every 100-200ms instead of every frame
+    const aiThinkInterval = this.settings.reactionTime;
+    const shouldThink = now - this.lastAIUpdate >= aiThinkInterval;
+
+    if (shouldThink) {
+      this.lastAIUpdate = now;
+      this.makeDecision(players, now);
+    }
+
+    // Always smooth out rotation and movement
+    this.smoothMovement(deltaTime);
+  }
+
+  private makeDecision(players: Map<string, PlayerEntity>, now: number): void {
     // Find nearest player
     const nearestPlayer = this.findNearestPlayer(players);
 
@@ -130,28 +151,26 @@ export class BotEntity extends PlayerEntity {
     const dy = target.y - this.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
-    // Calculate angle to target - smooth aiming (no jitter)
-    const perfectAngle = Math.atan2(dy, dx);
-    // Only apply aim error when actually shooting, not continuously
-    this.angle = perfectAngle;
+    // Set target angle (will be smoothly interpolated)
+    this.targetAngle = Math.atan2(dy, dx);
 
     // Move towards target but maintain some distance
     const optimalDistance = 250;
     if (distance > optimalDistance) {
       // Move closer
-      this.setMovement(dx / distance, dy / distance);
+      this.currentMoveX = dx / distance;
+      this.currentMoveY = dy / distance;
     } else if (distance < optimalDistance * 0.7) {
       // Strafe around target (circle strafe)
-      const strafeAngle = perfectAngle + Math.PI / 2;
-      this.setMovement(Math.cos(strafeAngle), Math.sin(strafeAngle));
+      const strafeAngle = this.targetAngle + Math.PI / 2;
+      this.currentMoveX = Math.cos(strafeAngle);
+      this.currentMoveY = Math.sin(strafeAngle);
     } else {
       // In optimal range, strafe
-      const strafeAngle = perfectAngle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1);
-      this.setMovement(Math.cos(strafeAngle) * 0.5, Math.sin(strafeAngle) * 0.5);
+      const strafeAngle = this.targetAngle + Math.PI / 2 * (Math.random() > 0.5 ? 1 : -1);
+      this.currentMoveX = Math.cos(strafeAngle) * 0.5;
+      this.currentMoveY = Math.sin(strafeAngle) * 0.5;
     }
-
-    // Shooting is handled by wantsToShoot() and game engine
-    // No need to shoot here directly
   }
 
   private fleeFromTarget(target: BotTarget): void {
@@ -160,12 +179,11 @@ export class BotEntity extends PlayerEntity {
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     // Run away from target
-    this.setMovement(-dx / distance, -dy / distance);
+    this.currentMoveX = -dx / distance;
+    this.currentMoveY = -dy / distance;
 
     // Still aim at target while fleeing
-    this.angle = Math.atan2(dy, dx);
-
-    // Shooting is handled by wantsToShoot() and game engine
+    this.targetAngle = Math.atan2(dy, dx);
   }
 
   private wander(now: number): void {
@@ -177,12 +195,28 @@ export class BotEntity extends PlayerEntity {
     }
 
     // Move in wander direction
-    this.setMovement(
-      Math.cos(this.wanderAngle) * 0.6,
-      Math.sin(this.wanderAngle) * 0.6
-    );
+    this.currentMoveX = Math.cos(this.wanderAngle) * 0.6;
+    this.currentMoveY = Math.sin(this.wanderAngle) * 0.6;
 
-    this.angle = this.wanderAngle;
+    this.targetAngle = this.wanderAngle;
+  }
+
+  // Smooth interpolation for movement and rotation
+  private smoothMovement(deltaTime: number): void {
+    // Smooth rotation - lerp towards target angle
+    const rotationSpeed = 8.0; // Higher = faster rotation
+    const angleDiff = this.targetAngle - this.angle;
+
+    // Normalize angle difference to -PI to PI
+    let normalizedDiff = angleDiff;
+    while (normalizedDiff > Math.PI) normalizedDiff -= Math.PI * 2;
+    while (normalizedDiff < -Math.PI) normalizedDiff += Math.PI * 2;
+
+    // Lerp angle
+    this.angle += normalizedDiff * rotationSpeed * deltaTime;
+
+    // Apply current movement (already smoothed by decision frequency)
+    this.setMovement(this.currentMoveX, this.currentMoveY);
   }
 
   // Check if bot wants to shoot (for game engine to create bullet)
