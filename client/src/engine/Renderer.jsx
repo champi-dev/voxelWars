@@ -7,6 +7,7 @@ import World from './World';
 import Chunk from './Chunk';
 import OtherPlayer from './OtherPlayer';
 import BlockSelector from './BlockSelector';
+import Environment from './Environment';
 import HUD from '../components/HUD';
 import Chat from '../components/Chat';
 import DamageIndicator from '../components/DamageIndicator';
@@ -110,21 +111,8 @@ function Scene({ player, world, onTargetChange }) {
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.6} />
-      <directionalLight
-        position={[50, 50, 25]}
-        intensity={1}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-50}
-        shadow-camera-right={50}
-        shadow-camera-top={50}
-        shadow-camera-bottom={-50}
-        shadow-camera-near={0.5}
-        shadow-camera-far={200}
-      />
+      {/* Environment (clouds, sun, lighting, fog) */}
+      <Environment />
 
       {/* World Chunks */}
       <WorldChunks world={world} />
@@ -145,9 +133,6 @@ function Scene({ player, world, onTargetChange }) {
 
       {/* Camera Controls */}
       <CameraController player={player} world={world} />
-
-      {/* Fog */}
-      <fog attach="fog" args={['#87CEEB', 50, 200]} />
     </>
   );
 }
@@ -183,8 +168,8 @@ export default function Renderer({ username }) {
   }, [targetBlock]);
 
   useEffect(() => {
-    // Initialize player
-    playerRef.current = new Player(username, 0, 20, 0);
+    // Initialize player at a higher spawn point to see the world better
+    playerRef.current = new Player(username, 0, 30, 0);
 
     // Initialize world
     worldRef.current = new World(socket);

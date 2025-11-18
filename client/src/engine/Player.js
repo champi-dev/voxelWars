@@ -228,11 +228,15 @@ export default class Player {
     // Apply velocity to position
     this.position.y += this.velocity.y;
 
-    // Simple ground collision (don't fall below y=0)
-    if (this.position.y <= 1.5) {
-      this.position.y = 1.5;
+    // Ground collision - stop at terrain level
+    // For now, use a fixed ground level of y=20 (we'll improve this with proper terrain collision later)
+    const groundLevel = 18; // Slightly above average terrain height
+    if (this.position.y <= groundLevel) {
+      this.position.y = groundLevel;
       this.velocity.y = 0;
       this.isGrounded = true;
+    } else {
+      this.isGrounded = false;
     }
   }
 

@@ -118,7 +118,7 @@ export function createSimpleChunkMesh(chunkData) {
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     flatShading: true,
-    side: THREE.FrontSide
+    side: THREE.DoubleSide  // Render both sides to fix holes between chunks
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -264,7 +264,7 @@ export function createGreedyChunkMesh(chunkData) {
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
     flatShading: true,
-    side: THREE.FrontSide
+    side: THREE.DoubleSide  // Render both sides to fix holes between chunks
   });
 
   const mesh = new THREE.Mesh(geometry, material);
